@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "_macros.html" import cover, stars, badge %}
+{% block title %}Library · Bookplate{% endblock %}
+{% block content %}
+{% set base = {'q': q, 'status': status, 'sort': sort, 'view': view, 'notes': '1' if show_notes else ''} %}
+{% macro link(over) %}?{{ (base | dict_merge(over)) | urlencode_clean }}{% endmacro %}
+<div class="page-head">
+  <div><p class="eyebrow">Your library</p><h1>{{ counts.values() | sum }} volumes</h1></div>
+  <a class="btn btn--primary" href="/books/new">Add book</a>
+</div>
+
+<form class="toolbar" method="get" action="/">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search titles, authors, genres, notes" aria-label="Search">
+  <input type="hidden" name="status" value="{{ status }}"><input type="hidden" name="view" value="{{ view }}">
+  <select name="sort" aria-label="Sort" onchange="this.form.submit()">
+    {% for key, label in [('added', 'Recently added'), ('title', 'Title'), ('author', 'Author'), ('rating', 'Rating'), ('date', 'Date finished')] %}
+    <option value="{{ key }}" {{ 'selected' if sort == key }}>{{ label }}</option>{% endfor %}
+  </select>
+  <label class="toggle"><input type="checkbox" name="notes" value="1" {{ 'checked' if show_notes }} onchange="this.form.submit()"> Show notes</label>
+  <button class="btn">Search</button>
+</form>
+
+<nav class="chips">
+  <a class="chip {{ 'active' if status == 'all' }}" href="{{ link({'status': 'all'}) }}">All</a>
+  {% for key, label in STATUS_LABELS.items() %}
+  <a class="chip {{ 'active' if status == key }}" href="{{ link({'status': key}) }}">{{ label }} <small>{{ counts[key] }}</small></a>
+  {% endfor %}
+  <span class="spacer"></span>
+  <a class="chip {{ 'active' if view == 'covers' }}" href="{{ link({'view': 'covers'}) }}">Covers</a>
+  <a class="chip {{ 'active' if view == 'ledger' }}" href="{{ link({'view': 'ledger'}) }}">Ledger</a>
+</nav>
+
+{% if not books %}
+  <p class="empty-note">{% if q or status != 'all' %}No books match.{% else %}Your shelves are empty. <a href="/books/new">Add your first book</a> or import a library in <a href="/settings">Settings</a>.{% endif %}</p>
+{% elif view == 'covers' %}
+  <ul class="cover-grid">
+  {% for b in books %}
+    <li><a href="/books/{{ b.id }}" title="{{ b.title }} — {{ b.author }}">{{ cover(b, ribbon=show_notes and b.id in noted, percent=percents.get(b.id)) }}</a>
+      <p class="grid-title">{{ b.title }}</p><p class="muted">{{ b.author }}</p></li>
+  {% endfor %}
+  </ul>
+{% else %}
+  {% set features = user.features %}
+  <div class="table-wrap"><table class="ledger">
+    <thead><tr>
+      <th><a href="{{ link({'sort': 'title'}) }}">Title</a></th><th><a href="{{ link({'sort': 'author'}) }}">Author</a></th>
+      <th>Genre</th><th>Status</th><th><a href="{{ link({'sort': 'rating'}) }}">Rating</a></th>
+      <th><a href="{{ link({'sort': 'date'}) }}">Finished</a></th><th class="num">Pages</th>
+      {% if 'source' in features %}<th>Source</th>{% endif %}{% if 'copy' in features %}<th>Copy</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for b in books %}
+      <tr>
+        <td><a href="/books/{{ b.id }}">{{ b.title }}</a>{% if show_notes and b.id in noted %} <span class="ribbon-dot" title="Has notes"></span>{% endif %}</td>
+        <td>{{ b.author }}</td><td>{{ b.genre or '' }}</td><td>{{ badge(b.status) }}</td>
+        <td>{% if b.rating %}{{ stars(b.rating) }}{% endif %}</td><td>{{ b.date_read or '' }}</td>
+        <td class="num">{{ b.pages or '' }}</td>
+        {% if 'source' in features %}<td>{{ source_label(b.format) or '' }}</td>{% endif %}
+        {% if 'copy' in features %}<td>{{ '✓' if b.has_copy }}</td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="6">{{ books | length }} {{ 'book' if books | length == 1 else 'books' }}</td><td class="num">{{ '{:,}'.format(total_pages) }}</td>
+      {% if 'source' in features %}<td></td>{% endif %}{% if 'copy' in features %}<td></td>{% endif %}</tr></tfoot>
+  </table></div>
+{% endif %}
+{% endblock %}

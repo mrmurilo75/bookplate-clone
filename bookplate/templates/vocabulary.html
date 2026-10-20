@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Vocabulary · Bookplate{% endblock %}
+{% macro book_select(selected) %}<select name="book_id"><option value="">No book</option>{% for b in shelf %}<option value="{{ b.id }}" {{ 'selected' if selected == b.id }}>{{ b.title }}</option>{% endfor %}</select>{% endmacro %}
+{% block content %}
+<div class="page-head"><div><p class="eyebrow">Vocabulary</p><h1>Words learned along the way</h1></div></div>
+
+<section class="card">
+  <h2 class="section-title">Add a word</h2>
+  <form method="post" action="/vocabulary" class="stack" id="word-form">
+    <div class="row"><input name="word" id="w-word" placeholder="Type a word" required><button type="button" class="btn" id="w-lookup">Look up</button></div>
+    <div id="w-senses" class="senses" aria-live="polite"></div>
+    <div class="grid2">
+      <label>Part of speech<input name="part_of_speech" id="w-pos"></label>
+      <label>From the book{{ book_select(book) }}</label>
+    </div>
+    <label>Definition<textarea name="definition" id="w-def" rows="2" required></textarea></label>
+    <label>Example<input name="example" id="w-ex"></label>
+    <input type="hidden" name="back" value="{{ request.url.path }}{{ '?book=' ~ book if book }}">
+    <button class="btn btn--primary">Save word</button>
+  </form>
+</section>
+
+<form class="toolbar" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search words" aria-label="Search words">
+  <select name="book" onchange="this.form.submit()" aria-label="Filter by book"><option value="">All books</option>{% for b in shelf %}<option value="{{ b.id }}" {{ 'selected' if book == b.id }}>{{ b.title }}</option>{% endfor %}</select>
+  <select name="sort" onchange="this.form.submit()" aria-label="Sort"><option value="added">Newest first</option><option value="word" {{ 'selected' if sort == 'word' }}>A–Z</option></select>
+  <button class="btn">Search</button>
+</form>
+
+{% if words %}
+<ul class="vocab-grid">
+  {% for w in words %}
+  <li class="vocab-card">
+    <h3>{{ w.word }}{% if w.phonetic %} <span class="muted">{{ w.phonetic }}</span>{% endif %}</h3>
+    {% if w.part_of_speech %}<p class="eyebrow">{{ w.part_of_speech }}</p>{% endif %}
+    <p>{{ w.definition }}</p>
+    {% if w.example %}<p class="example">“{{ w.example }}”</p>{% endif %}
+    {% if w.book_id and books.get(w.book_id) %}<p class="muted">From <a href="/books/{{ w.book_id }}">{{ books[w.book_id].title }}</a></p>{% endif %}
+    <details><summary>Edit</summary>
+      <form method="post" action="/vocabulary/{{ w.id }}" class="stack">
+        <input name="word" value="{{ w.word }}" required aria-label="Word">
+        <input name="part_of_speech" value="{{ w.part_of_speech or '' }}" placeholder="Part of speech" aria-label="Part of speech">
+        <textarea name="definition" rows="2" required aria-label="Definition">{{ w.definition }}</textarea>
+        <input name="example" value="{{ w.example or '' }}" placeholder="Example" aria-label="Example">
+        {{ book_select(w.book_id) }}
+        <div class="row"><button class="btn">Save</button><button class="btn btn--danger" formaction="/vocabulary/{{ w.id }}/delete">Delete</button></div>
+      </form>
+    </details>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p class="empty-note">{{ 'No words match.' if q or book else 'No words yet.' }}</p>{% endif %}
+{% endblock %}
+{% block scripts %}<script src="/static/vocabulary.js"></script>{% endblock %}

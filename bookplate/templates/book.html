@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import cover, stars, badge %}
+{% block title %}{{ book.title }} · Bookplate{% endblock %}
+{% block content %}
+<a href="/" class="back">← Library</a>
+<section class="detail">
+  <div class="detail-cover">{{ cover(book, percent=progress.percent if progress and book.status == 'reading' else none) }}</div>
+  <div class="detail-body">
+    <p class="eyebrow">{{ badge(book.status) }}{% if book.genre %} · {{ book.genre }}{% endif %}</p>
+    <h1>{{ book.title }}</h1>
+    <p class="byline">{{ book.author }}</p>
+    {% if book.rating %}<p>{{ stars(book.rating) }}</p>{% endif %}
+    <dl class="facts">
+      {% if book.pages %}<dt>Pages</dt><dd>{{ book.pages }}</dd>{% endif %}
+      {% if book.date_read %}<dt>{{ date_label(book.status) }}</dt><dd>{{ book.date_read }}</dd>{% endif %}
+      {% if book.format and 'source' in user.features %}<dt>Source</dt><dd>{{ source_label(book.format) }}</dd>{% endif %}
+      {% if 'copy' in user.features %}<dt>Copy</dt><dd>{{ 'At home' if book.has_copy else '—' }}</dd>{% endif %}
+      {% if book.isbn %}<dt>ISBN</dt><dd>{{ book.isbn }}</dd>{% endif %}
+    </dl>
+    {% if book.short_notes %}<p class="muted">{{ book.short_notes }}</p>{% endif %}
+    <div class="row">
+      <a class="btn" href="/books/{{ book.id }}/edit">Edit</a>
+      <form method="post" action="/books/{{ book.id }}/delete" onsubmit="return confirm('Delete this book with its notes, images and cover?')"><button class="btn btn--danger">Delete</button></form>
+    </div>
+  </div>
+</section>
+
+{% if book.status in ('reading', 'read', 'to-read') or progress %}
+<section class="card">
+  <h2 class="section-title">Reading progress</h2>
+  {% if progress %}
+    <div class="progress-bar"><i style="width:{{ progress.percent }}%"></i></div>
+    <p><strong>{{ progress.percent }}%</strong>{% if progress.page is not none %} · page {{ progress.page }} of {{ book.pages }}{% endif %}
+      · started {{ progress.started }}
+      {% if progress.read_in_days %} · read in {{ progress.read_in_days }} days
+      {% elif progress.days_left is not none and progress.percent < 100 %} · about {{ progress.days_left }} days left at {{ '%.1f' % progress.per_day }} {{ 'pages' if progress.unit == 'page' else '%' }} a day{% endif %}</p>
+    <ul class="progress-log">
+      {% for e in progress.entries | reverse %}
+      <li><span>{{ e.date }}</span><span>{% if e.page is not none %}p. {{ e.page }}{% else %}{{ '%g' % e.percent }}%{% endif %}</span>
+        <form method="post" action="/books/{{ book.id }}/progress/{{ e.date }}/delete"><button class="link" aria-label="Remove">✕</button></form></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if book.status != 'dnf' %}
+  <form method="post" action="/books/{{ book.id }}/progress" class="row">
+    <label>{{ 'Page' if book.pages else 'Percent' }}<input type="number" name="value" min="0" max="{{ book.pages or 100 }}" step="{{ 1 if book.pages else 'any' }}" required></label>
+    <label>Date<input type="date" name="date" value="{{ today }}" max="{{ today }}"></label>
+    <button class="btn">Log progress</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card notes">
+  <div class="page-head"><h2 class="section-title">Notes</h2>{% if not edit %}<a class="btn" href="?edit=1">{{ 'Edit notes' if notes else 'Write notes' }}</a>{% endif %}</div>
+  {% if edit %}
+  <form method="post" action="/books/{{ book.id }}/notes" class="stack" id="notes-form" data-book="{{ book.id }}">
+    <p class="muted">Markdown: <code>## heading</code>, <code>**bold**</code>, <code>- list</code>. Paste or drop images into the text, or <label class="link">add one<input type="file" accept="image/*" id="notes-image" hidden></label>.</p>
+    <textarea name="markdown" id="notes-text" rows="18">{{ notes }}</textarea>
+    <div class="row"><button class="btn btn--primary" name="action" value="save">Save</button><button class="btn" name="action" value="cancel" formnovalidate>Cancel</button></div>
+  </form>
+  {% elif notes %}<article class="prose">{{ notes | markdown | safe }}</article>
+  {% else %}<p class="empty-note">No notes yet.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2 class="section-title">Words from this book</h2>
+  {% if words %}<ul class="word-list">{% for w in words %}<li><strong>{{ w.word }}</strong>{% if w.part_of_speech %} <em class="muted">{{ w.part_of_speech }}</em>{% endif %} — {{ w.definition }}</li>{% endfor %}</ul>
+  {% else %}<p class="empty-note">None yet. <a href="/vocabulary?book={{ book.id }}">Add a word</a></p>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}{% if edit %}<script src="/static/notes.js"></script>{% endif %}{% endblock %}

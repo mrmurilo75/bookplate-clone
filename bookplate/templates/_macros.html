@@ -1,0 +1,24 @@
+{# A book's cover: the real photo, or a generated cloth cover in its binding colour. #}
+{% macro cover(book, ribbon=False, percent=None) -%}
+{% set c = palette_for(book.color_index) %}
+<div class="cover{{ ' cover--photo' if book.cover_image }}" style="--bg:{{ c[1] }};--deep:{{ c[2] }};--ink-on:{{ c[3] }}">
+  {% if book.cover_image %}<img src="{{ book.cover_image }}" alt="" loading="lazy">
+  {% else %}<span class="cover-title">{{ book.title }}</span><span class="cover-author">{{ book.author }}</span>{% endif %}
+  {% if ribbon %}<span class="ribbon" title="Has notes"></span>{% endif %}
+  {% if percent is not none %}<span class="cover-progress"><i style="width:{{ percent }}%"></i></span>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro stars(rating) -%}
+<span class="stars" title="{{ '%g' % rating }} of 5">{% for i in range(1, 6) %}{% if rating >= i %}★{% elif rating >= i - 0.5 %}⯪{% else %}☆{% endif %}{% endfor %}</span>
+{%- endmacro %}
+
+{% macro badge(status) -%}<span class="badge badge--{{ status }}">{{ STATUS_LABELS[status] }}</span>{%- endmacro %}
+
+{% macro book_row(book) -%}
+<li class="book-row">
+  <a href="/books/{{ book.id }}">{{ cover(book) }}</a>
+  <div><a href="/books/{{ book.id }}" class="row-title">{{ book.title }}</a><div class="muted">{{ book.author }}</div></div>
+  <div class="row-meta">{% if book.rating %}{{ stars(book.rating) }}{% endif %}{% if book.date_read %}<div class="muted">{{ book.date_read }}</div>{% endif %}</div>
+</li>
+{%- endmacro %}

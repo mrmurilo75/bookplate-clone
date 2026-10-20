@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import book_row %}
+{% block title %}Statistics · Bookplate{% endblock %}
+{% macro bars(rows, kind, key='label') %}
+{% set top = (rows | map(attribute='count') | max) or 1 %}
+<ul class="hbars">{% for r in rows %}
+  <li><a href="?drill={{ 'genres' if kind == 'genre' and r.label == 'Other' else kind }}&v={{ r[key] | urlencode }}" title="{{ r.label }}: {{ r.count }}">
+    <span class="hbar-label">{{ r.label }}</span><span class="hbar"><i style="width:{{ (r.count / top * 100) | round(1) }}%"></i></span><span class="hbar-count">{{ r.count }}</span></a></li>
+{% endfor %}</ul>
+{% endmacro %}
+{% block content %}
+<div class="page-head"><div><p class="eyebrow">Statistics</p><h1>Your reading, in numbers</h1></div></div>
+
+{% if drill %}
+<div class="drill" role="dialog" aria-labelledby="drill-title"><div class="drill-box card">
+  <a href="/statistics" class="dialog-close" aria-label="Close">✕</a>
+  <h2 id="drill-title">{{ drill.title }}</h2>{% if drill.sub %}<p class="muted">{{ drill.sub }}</p>{% endif %}
+  {% if drill.genres %}{{ bars(drill.genres, 'genre') }}{% endif %}
+  {% for heading, items in drill.sections %}
+    {% if heading %}<h3 class="section-title">{{ heading }}</h3>{% endif %}
+    {% if items %}<ul class="book-rows">{% for b in items %}{{ book_row(b) }}{% endfor %}</ul>{% else %}<p class="empty-note">No books.</p>{% endif %}
+  {% endfor %}
+</div></div>
+{% endif %}
+
+<div class="tiles">
+  <div class="tile"><p class="eyebrow">Books read</p><p class="tile-value">{{ s.read }}</p></div>
+  <div class="tile"><p class="eyebrow">Read in {{ s.this_year }}</p><p class="tile-value">{{ s.read_this_year }}</p></div>
+  <div class="tile"><p class="eyebrow">Pages read</p><p class="tile-value">{{ '{:,}'.format(s.pages) }}</p></div>
+  <div class="tile"><p class="eyebrow">Average rating</p><p class="tile-value">{{ '%.1f ★' % s.avg if s.avg else '—' }}</p></div>
+</div>
+
+<section class="card">
+  <h2 class="section-title">Books finished by year</h2>
+  {% if s.years %}
+  {% set top = (s.years | map(attribute='count') | max) or 1 %}
+  <div class="year-chart">{% for y in s.years %}
+    <a href="?drill=year&v={{ y.year }}" class="year-col" title="{{ y.year }}: {{ y.count }}">
+      <span class="year-count">{{ y.count or '' }}</span><span class="year-bar" style="height:{{ (y.count / top * 100) | round(1) }}%"></span><span class="year-label">{{ y.year }}</span></a>
+  {% endfor %}</div>
+  {% else %}<p class="empty-note">Finish a book to see it here.</p>{% endif %}
+</section>
+
+<div class="grid2">
+  <section class="card"><h2 class="section-title">Ratings given</h2>{{ bars(s.ratings, 'rating', 'rating') }}</section>
+  <section class="card"><h2 class="section-title">Genres on the shelf</h2>{% if s.genres %}{{ bars(s.genres, 'genre') }}<p><a href="?drill=genres">See all genres</a></p>{% else %}<p class="empty-note">No books yet.</p>{% endif %}</section>
+  {% if 'source' in user.features %}<section class="card"><h2 class="section-title">Where they came from</h2>{{ bars(s.sources, 'source', 'source') }}</section>{% endif %}
+  <section class="card">
+    <h2 class="section-title">Currently reading</h2>
+    {% if s.reading %}<ul class="reading-list">{% for r in s.reading %}
+      <li><a href="/books/{{ r.book.id }}"><strong>{{ r.book.title }}</strong> <span class="muted">{{ r.book.author }}</span></a>
+        <div class="progress-bar"><i style="width:{{ r.summary.percent if r.summary else 0 }}%"></i></div>
+        <span class="muted">{% if not r.summary %}No progress logged yet{% elif r.summary.percent >= 100 %}On the last page{% elif r.summary.days_left is not none %}About {{ r.summary.days_left }} days left{% else %}Started {{ r.summary.started }}{% endif %}</span></li>
+    {% endfor %}</ul>
+    {% else %}<p class="empty-note">Nothing on the go. Mark a book as Reading to track it here.</p>{% endif %}
+    {% if s.avg_days is not none %}<p class="muted">Books you tracked took {{ s.avg_days }} days on average to finish ({{ s.tracked }} books).</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

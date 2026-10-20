@@ -1,0 +1,7 @@
+Bookplate (Python port)
+Copyright 2026 The Bookplate authors
+
+A Python port of Bookplate (https://github.com/LeoPhh/bookplate), which is
+licensed under the Apache License, Version 2.0 (see LICENSE). This port is
+licensed under the same terms. The name "Bookplate" and its logo are not part
+of that license; this is an unofficial port "based on Bookplate".

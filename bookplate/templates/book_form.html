@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import cover %}
+{% block title %}{{ 'Edit' if book and book.title else 'Add' }} book · Bookplate{% endblock %}
+{% block content %}
+{% set editing = book and book.title and request.url.path.endswith('/edit') %}
+<div class="page-head"><div><p class="eyebrow">{{ 'Edit' if editing else 'New volume' }}</p><h1>{{ book.title if editing else 'Add a book' }}</h1></div>
+  <a href="{{ '/books/' ~ book.id if editing else '/' }}" class="btn">Cancel</a></div>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if not editing %}
+<section class="card catalogue">
+  <h2 class="section-title">Search the catalogue</h2>
+  <p class="muted">Open Library — picking a result fills in the title, author and pages, and fetches the cover.</p>
+  <div class="row"><input id="cat-q" type="search" placeholder="Title, author or ISBN"><button type="button" class="btn" id="cat-go">Search</button></div>
+  <ul id="cat-results" class="cat-results"></ul>
+</section>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card book-form" action="{{ '/books/' ~ book.id ~ '/edit' if editing else '/books' }}">
+  <div class="grid2">
+    <label>Title<input name="title" id="f-title" value="{{ book.title if book else '' }}" required></label>
+    <label>Author<input name="author" id="f-author" value="{{ book.author if book else '' }}" required></label>
+    <label>Genre<input name="genre" value="{{ book.genre or '' if book else '' }}"></label>
+    <label>Pages<input name="pages" id="f-pages" type="number" min="1" value="{{ book.pages or '' if book else '' }}"></label>
+    <label>Status<select name="status">{% for k, l in STATUS_LABELS.items() %}<option value="{{ k }}" {{ 'selected' if (book.status if book else 'to-read') == k }}>{{ l }}</option>{% endfor %}</select></label>
+    <label>Rating<select name="rating">{% for n in range(0, 11) %}{% set r = n / 2 %}<option value="{{ r }}" {{ 'selected' if book and book.rating == r }}>{{ 'Unrated' if n == 0 else ('%g ★' % r) }}</option>{% endfor %}</select></label>
+    <label>Finished / stopped on<input name="date_read" type="date" max="{{ today }}" value="{{ book.date_read or '' if book else '' }}"></label>
+    <label>ISBN<input name="isbn" value="{{ book.isbn or '' if book else '' }}"></label>
+    {% if 'source' in user.features %}
+    {% set custom = book and book.format and book.format not in FORMAT_LABELS %}
+    <label>Source<select name="source"><option value="">—</option>{% for k, l in FORMAT_LABELS.items() %}<option value="{{ k }}" {{ 'selected' if book and book.format == k }}>{{ l }}</option>{% endfor %}<option value="other" {{ 'selected' if custom }}>Other…</option></select></label>
+    <label>Other source<input name="source_custom" value="{{ book.format if custom else '' }}" placeholder="e.g. Book fair"></label>
+    {% elif book and book.format %}<input type="hidden" name="source" value="other"><input type="hidden" name="source_custom" value="{{ book.format }}">{% endif %}
+    {% if 'copy' in user.features %}<label class="check"><input type="checkbox" name="copy" value="true" {{ 'checked' if book and book.has_copy }}> A physical copy lives at home</label>
+    {% elif book and book.has_copy %}<input type="hidden" name="copy" value="true">{% endif %}
+  </div>
+  <fieldset class="cover-field">
+    <legend>Cover</legend>
+    <div class="row">
+      {% if book and book.title %}<div class="cover-preview">{{ cover(book) }}</div>{% endif %}
+      <div class="stack">
+        <label>Upload a photo (cropped to 2 : 3)<input type="file" name="cover" accept="image/*"></label>
+        <p class="muted" id="cat-cover-note" hidden>The catalogue cover will be fetched when you save.</p>
+        {% if book and book.cover_image %}<label class="check"><input type="checkbox" name="remove_cover" value="true"> Remove the cover photo</label>{% endif %}
+        <label>Binding colour (without a photo)<select name="color_index">{% for c in PALETTE %}<option value="{{ loop.index0 }}" {{ 'selected' if color == loop.index0 }}>{{ c[0] }}</option>{% endfor %}</select></label>
+      </div>
+    </div>
+  </fieldset>
+  <input type="hidden" name="ol_work_id" id="f-work" value="{{ book.ol_work_id or '' if book else '' }}">
+  <input type="hidden" name="ol_cover_id" id="f-cover-id">
+  <button class="btn btn--primary">{{ 'Save' if editing else 'Add to library' }}</button>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/catalogue.js"></script>{% endblock %}

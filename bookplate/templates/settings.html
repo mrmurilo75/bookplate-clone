@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Settings · Bookplate{% endblock %}
+{% block content %}
+<div class="page-head"><div><p class="eyebrow">Settings</p><h1>{{ user.name }}</h1></div></div>
+{% if msg %}<p class="notice" role="status">{{ msg }}</p>{% endif %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+<section class="card" id="profile">
+  <h2 class="section-title">Profile</h2>
+  <form method="post" action="/settings/profile" class="row"><label>Name<input name="name" value="{{ user.name }}" required></label><button class="btn">Save</button></form>
+  <p class="muted">Signed in as {{ user.email }}</p>
+
+  <h3 class="section-title">Showcase your year</h3>
+  <p class="muted">A public page of one year's reading for anyone you send the link to: covers, titles, authors, ratings and page counts — never notes or vocabulary.</p>
+  {% for s in showcases %}
+  <div class="showcase-row">
+    <a href="/s/{{ s.id }}">{{ s.year }}</a> · {{ {'both': 'Read and reading', 'read': 'Read', 'reading': 'Reading'}[s.include] }}{% if s.name %} · as “{{ s.name }}”{% endif %}
+    <code>{{ config.public_url }}/s/{{ s.id }}</code>
+    <form method="post" action="/settings/showcase/{{ s.id }}/delete"><button class="link">Turn off</button></form>
+  </div>
+  {% endfor %}
+  <form method="post" action="/settings/showcase" class="row">
+    <label>Year<input type="number" name="year" value="{{ this_year }}" min="1900" max="{{ this_year }}" required></label>
+    <label>Show<select name="include"><option value="both">Read and reading</option><option value="read">Read</option><option value="reading">Reading (this year only)</option></select></label>
+    <label>Name on it<input name="name" maxlength="40" value="{{ user.name }}"></label>
+    <button class="btn">Save showcase</button>
+  </form>
+</section>
+
+<section class="card" id="preferences">
+  <h2 class="section-title">Preferences</h2>
+  <form method="post" action="/settings/features" class="stack">
+    {% for id, description in FEATURES.items() %}
+    <label class="check"><input type="checkbox" name="{{ id }}" value="1" {{ 'checked' if id in user.features }}> <strong>{{ id | title }}</strong> — {{ description }}</label>
+    {% endfor %}
+    <p class="muted">Switching one off only hides it: the data stays, in exports too.</p>
+    <button class="btn">Save preferences</button>
+  </form>
+</section>
+
+<section class="card" id="import">
+  <h2 class="section-title">Import &amp; export</h2>
+  <p><a class="btn" href="/api/export">Export library</a> <span class="muted">Books, notes, images, covers and vocabulary as one zip of JSON, markdown and image files.</span></p>
+  <form method="post" action="/settings/import" enctype="multipart/form-data" class="row"><label>Import a Bookplate export (.zip)<input type="file" name="file" accept=".zip" required></label><button class="btn">Import</button></form>
+  <form method="post" action="/settings/import-csv" enctype="multipart/form-data" class="row"><label>Import from Goodreads or StoryGraph (.csv)<input type="file" name="file" accept=".csv" required></label><button class="btn">Import CSV</button></form>
+</section>
+
+<section class="card" id="security">
+  <h2 class="section-title">Security</h2>
+  <form method="post" action="/settings/password" class="row">
+    <label>Current password<input type="password" name="current" required autocomplete="current-password"></label>
+    <label>New password<input type="password" name="new" minlength="8" required autocomplete="new-password"></label>
+    <button class="btn">Change password</button>
+  </form>
+  <p class="muted">Changing it signs out every other device.</p>
+  <h3 class="section-title">Delete account</h3>
+  <form method="post" action="/settings/delete" class="row" onsubmit="return confirm('Delete your account and everything in it? This cannot be undone.')">
+    <label>Password<input type="password" name="password" required></label><button class="btn btn--danger">Delete account</button>
+  </form>
+</section>
+{% endblock %}

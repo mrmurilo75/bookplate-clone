@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import cover, stars %}
+{% block title %}{{ title }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex"><meta property="og:title" content="{{ title }}">{% endblock %}
+{% block content %}
+<section class="bookplate card">
+  <p class="eyebrow">Ex libris</p>
+  <h1>{{ title }}</h1>
+  <div class="tiles">
+    <div class="tile"><p class="eyebrow">Books</p><p class="tile-value">{{ view.stats.books }}</p></div>
+    <div class="tile"><p class="eyebrow">Pages</p><p class="tile-value">{{ '{:,}'.format(view.stats.pages) }}</p></div>
+    {% if view.stats.pages_per_day %}<div class="tile"><p class="eyebrow">Pages a day</p><p class="tile-value">{{ view.stats.pages_per_day }}</p></div>{% endif %}
+    {% if view.stats.rating %}<div class="tile"><p class="eyebrow">Average rating</p><p class="tile-value">{{ view.stats.rating }} ★</p></div>{% endif %}
+  </div>
+  {% if view.stats.longest %}<p class="muted">Longest: {{ view.stats.longest.title }} ({{ view.stats.longest.pages }} pages)</p>{% endif %}
+</section>
+
+{% if view.reading %}
+<section><h2 class="section-title">Reading now</h2>
+  <ul class="cover-grid">{% for b, pct in view.reading %}<li>{{ cover(b, percent=pct) }}<p class="grid-title">{{ b.title }}</p><p class="muted">{{ b.author }}{% if pct is not none %} · {{ pct }}%{% endif %}</p></li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if view.favourites %}
+<section><h2 class="section-title">Five-star reads</h2>
+  <ul class="cover-grid">{% for b in view.favourites %}<li>{{ cover(b) }}<p class="grid-title">{{ b.title }}</p><p class="muted">{{ b.author }}</p></li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% for books in view.months %}{% if books %}
+<section><h2 class="section-title">{{ months[loop.index0] }}</h2>
+  <ul class="cover-grid">{% for b in books %}<li>{{ cover(b) }}<p class="grid-title">{{ b.title }}</p><p class="muted">{{ b.author }}{% if b.pages %} · {{ b.pages }} pp.{% endif %}</p>{% if b.rating %}{{ stars(b.rating) }}{% endif %}</li>{% endfor %}</ul>
+</section>
+{% endif %}{% endfor %}
+{% if not view.read and not view.reading %}<p class="empty-note">Nothing here yet.</p>{% endif %}
+
+<footer class="showcase-foot muted">
+  Made with Bookplate{% if can_sign_up %} · <a href="/signup">Start your own</a>{% endif %}
+  {% if config.contact_email %} · <a href="mailto:{{ config.contact_email }}?subject=Report%20showcase%20{{ s.id }}">Report this page</a>{% endif %}
+</footer>
+{% endblock %}
