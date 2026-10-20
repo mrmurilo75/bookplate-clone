@@ -18,8 +18,15 @@ autodoc_member_order = "bysource"
 autodoc_class_signature = "separated"
 autodoc_default_options = {"members": True, "undoc-members": True}
 exclude_patterns = ["_build"]
-html_theme = "alabaster"
-html_theme_options = {"description": "A self-hosted reading tracker", "fixed_sidebar": True}
+html_theme = "furo"
+html_title = project
+# On CI, each page links to its source on GitHub ("view this page" / "edit this page").
+if branch := os.environ.get("GITHUB_REF_NAME"):
+    html_theme_options = {
+        "source_repository": "https://github.com/mrmurilo75/bookplate-clone/",
+        "source_branch": branch,
+        "source_directory": "docs/",
+    }
 
 
 ROUTE_TABLE = """.. list-table::
