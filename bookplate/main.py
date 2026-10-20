@@ -47,7 +47,8 @@ async def request_id(request: Request, call_next):
     token = getattr(request.state, "renew_session", None)
     if token and not any(c.startswith(f"{auth.COOKIE}=") for c in response.headers.getlist("set-cookie")):
         auth.set_cookie(response, token)
-    if not request.url.path.startswith("/static"):
+    # Static files and health checks (Docker asks every 30 s) would only drown out the real requests.
+    if not request.url.path.startswith("/static") and request.url.path != "/api/health":
         log.info(
             json.dumps(
                 {

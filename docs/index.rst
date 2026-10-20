@@ -15,6 +15,7 @@ scripts), SQLModel on SQLite or Postgres, Alembic, uv, ruff and pytest-bdd.
    :maxdepth: 2
 
    install
+   deployment
    guide
    http-api
    development

@@ -15,16 +15,14 @@ With no configuration it keeps its data in ``./bookplate.db`` (SQLite) and
 ``./data/uploads``. Database migrations run automatically when the app starts.
 The first visit asks for the owner's account; after that, sign-up is closed.
 
-With Docker and Postgres
-------------------------
+On a server
+-----------
 
-.. code-block:: bash
+To run Bookplate for everyday use, with Docker Compose and Postgres or as a
+systemd service, behind HTTPS and with backups, follow the
+:doc:`deployment`.
 
-   cp .env.example .env    # set DB_PASSWORD and PUBLIC_URL
-   docker compose up -d --build
-
-This runs two containers: the app on port 8000 and Postgres 17. Covers and
-note images live in the ``uploads`` volume, the database in ``pgdata``.
+.. _configuration:
 
 Configuration
 -------------
@@ -63,41 +61,6 @@ Everything is set with environment variables (:mod:`bookplate.config`).
      - —
      - Sent to Open Library with searches (they allow busier apps that give a contact more requests);
        showcases' *Report this page* links write to it.
-
-Behind a reverse proxy
-----------------------
-
-The app speaks plain HTTP. For HTTPS, put it behind a reverse proxy such as
-Caddy and set ``PUBLIC_URL`` to the public ``https://`` address::
-
-   books.example.com {
-       reverse_proxy localhost:8000
-   }
-
-Forgotten passwords
--------------------
-
-Whoever runs the server resets a password with one command, which asks for the
-new password twice and signs out every device:
-
-.. code-block:: bash
-
-   uv run bookplate-reset-password you@example.com
-   # or, with Docker:
-   docker compose exec bookplate bookplate-reset-password you@example.com
-
-Backups
--------
-
-Each reader can download everything (books, notes, images, covers, progress and
-vocabulary) from **Settings → Import & export → Export library**, and import
-the same zip into any Bookplate. For a whole server, back up the database and
-the uploads folder:
-
-.. code-block:: bash
-
-   docker compose exec postgres pg_dump -U bookplate bookplate > bookplate.sql
-   docker compose cp bookplate:/data/uploads ./uploads-backup
 
 Outside services
 ----------------

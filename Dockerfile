@@ -9,4 +9,4 @@ RUN uv sync --frozen --no-dev
 ENV UPLOADS_DIR=/data/uploads
 EXPOSE 8000
 # Migrations run automatically on start.
-CMD ["uvicorn", "bookplate.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["uvicorn", "bookplate.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--no-access-log"]

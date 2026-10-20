@@ -1,8 +1,10 @@
 # Bookplate — self-hosted reading tracker.
 #
-#   1. Put this file and .env (copied from .env.example) in a folder.
+#   1. In a clone of this repository (the image is built from it), copy .env.example to .env.
 #   2. Fill in .env — at least DB_PASSWORD and PUBLIC_URL.
-#   3. docker compose up -d --build, then open PUBLIC_URL and create your account.
+#   3. docker compose up -d --build --wait, then open PUBLIC_URL and create your account.
+#
+# HTTPS, updates and backups: see docs/deployment.rst.
 
 name: bookplate
 
@@ -30,6 +32,12 @@ services:
       CONTACT_EMAIL: ${CONTACT_EMAIL:-}
     volumes:
       - uploads:/data/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 1s
     depends_on:
       postgres:
         condition: service_healthy

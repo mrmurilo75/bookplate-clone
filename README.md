@@ -58,12 +58,15 @@ uv run uvicorn bookplate.main:app --reload     # http://localhost:8000
 With no configuration it keeps its data in `./bookplate.db` and
 `./data/uploads`. Migrations run automatically on start.
 
-### With Docker and Postgres
+### On a server
 
 ```bash
 cp .env.example .env    # set DB_PASSWORD and PUBLIC_URL
-docker compose up -d --build
+docker compose up -d --build --wait
 ```
+
+The [deployment guide](docs/deployment.rst) covers HTTPS with Caddy or nginx,
+running without Docker under systemd, updates, backups and restores.
 
 Configuration (database, public URL, open registration, per-account limits)
 is set with environment variables; see
