@@ -1,12 +1,14 @@
-"""The export format (lib/archive.ts): a zip laid out like the original data/ folder.
+"""The export format (lib/archive.ts).
 
-manifest.json                 { format: "bookplate-export", formatVersion: 1, … }
-library.json                  { books: [...] }
-vocabulary.json               { words: [...] }
-progress.json                 { progress: [...] }
-notes/<bookId>.md             one markdown file per book
-notes/images/<bookId>/<file>  images pasted into those notes
-covers/<file>                 cropped covers
+A zip laid out like the original data/ folder, so the files stay readable without the app::
+
+    manifest.json                 { format: "bookplate-export", formatVersion: 1, … }
+    library.json                  { books: [...] }
+    vocabulary.json               { words: [...] }
+    progress.json                 { progress: [...] }
+    notes/<bookId>.md             one markdown file per book
+    notes/images/<bookId>/<file>  images pasted into those notes
+    covers/<file>                 cropped covers
 """
 
 import io

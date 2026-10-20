@@ -1,4 +1,4 @@
-import httpx
+import httpx2
 from conftest import jpeg
 from pytest_bdd import given, parsers, scenarios, then, when
 
@@ -16,9 +16,9 @@ def answer(monkeypatch, routes: dict):
     def fake_get(url, timeout=10):
         for prefix, response in routes.items():
             if url.startswith(prefix):
-                response.request = httpx.Request("GET", url)
+                response.request = httpx2.Request("GET", url)
                 return response
-        return httpx.Response(404)
+        return httpx2.Response(404)
 
     monkeypatch.setattr(outbound, "_get", fake_get)
     outbound._cache.clear()
@@ -27,7 +27,7 @@ def answer(monkeypatch, routes: dict):
 @given(parsers.parse('Open Library answers a search with "{title}" by "{author}", work "{key}", cover {cover:d}'))
 def ol_search(monkeypatch, title, author, key, cover):
     doc = {"key": key, "title": title, "author_name": [author], "cover_i": cover, "first_publish_year": 1965}
-    answer(monkeypatch, {"https://openlibrary.org/search.json": httpx.Response(200, json={"docs": [doc, {}]})})
+    answer(monkeypatch, {"https://openlibrary.org/search.json": httpx2.Response(200, json={"docs": [doc, {}]})})
 
 
 @when(parsers.parse('the catalogue is searched for "{q}"'))
@@ -46,7 +46,7 @@ def first_result(ctx, title, author, work, cover):
 def wiktionary(monkeypatch, word, definition):
     body = {"en": [{"partOfSpeech": "Noun", "definitions": [{"definition": definition, "examples": []}]}]}
     answer(
-        monkeypatch, {f"https://en.wiktionary.org/api/rest_v1/page/definition/{word}": httpx.Response(200, json=body)}
+        monkeypatch, {f"https://en.wiktionary.org/api/rest_v1/page/definition/{word}": httpx2.Response(200, json=body)}
     )
 
 
@@ -69,9 +69,9 @@ def itunes(monkeypatch, a, author, b, author2):
     answer(
         monkeypatch,
         {
-            "https://itunes.apple.com/search": httpx.Response(200, json={"results": results}),
-            "https://art/b/600x0w.jpg": httpx.Response(200, content=jpeg(600, 900, "blue")),
-            "https://art/a/600x0w.jpg": httpx.Response(200, content=jpeg(600, 900, "green")),
+            "https://itunes.apple.com/search": httpx2.Response(200, json={"results": results}),
+            "https://art/b/600x0w.jpg": httpx2.Response(200, content=jpeg(600, 900, "blue")),
+            "https://art/a/600x0w.jpg": httpx2.Response(200, content=jpeg(600, 900, "green")),
         },
     )
 

@@ -3,6 +3,7 @@
 import os
 import re
 from dataclasses import dataclass, field
+from importlib import metadata
 from pathlib import Path
 
 
@@ -19,7 +20,7 @@ def _int(name: str) -> int | None:
 
 @dataclass(frozen=True)
 class Config:
-    version: str = "1.4.0"
+    version: str = field(default_factory=lambda: metadata.version("bookplate"))
     database_url: str = field(default_factory=_database_url)
     public_url: str = field(default_factory=lambda: os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/"))
     registration_open: bool = field(default_factory=lambda: os.environ.get("REGISTRATION", "closed") == "open")

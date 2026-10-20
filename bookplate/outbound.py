@@ -9,7 +9,7 @@ import time
 import unicodedata
 from urllib.parse import quote
 
-import httpx
+import httpx2
 
 from .config import config
 from .storage import detect_image_type
@@ -21,8 +21,8 @@ CACHE_MAX = 2000  # keys are typed searches and words, so the cache must not gro
 DAY = 86400
 
 
-def _get(url: str, timeout: float = 10) -> httpx.Response:
-    return httpx.get(url, headers={"User-Agent": config.user_agent}, timeout=timeout, follow_redirects=True)
+def _get(url: str, timeout: float = 10) -> httpx2.Response:
+    return httpx2.get(url, headers={"User-Agent": config.user_agent}, timeout=timeout, follow_redirects=True)
 
 
 def _cached(key: str, fetch):
@@ -83,7 +83,7 @@ def same_book(result: dict, title: str, author: str) -> bool:
     return surname in _norm(result.get("artistName", "")) and (got.startswith(want) or want.startswith(got))
 
 
-def _jpeg_or_none(res: httpx.Response, min_size: int = 1000) -> bytes | None:
+def _jpeg_or_none(res: httpx2.Response, min_size: int = 1000) -> bytes | None:
     ok = res.is_success and len(res.content) > min_size and detect_image_type(res.content) == "image/jpeg"
     return res.content if ok else None
 
@@ -99,7 +99,7 @@ def find_cover(cover_id: int | None = None, isbn: str | None = None, title: str 
         try:
             if data := _jpeg_or_none(_get(url)):
                 return data
-        except httpx.HTTPError:
+        except httpx2.HTTPError:
             pass  # unreachable or slow — try the fallback
     if not title:
         return None
@@ -108,7 +108,7 @@ def find_cover(cover_id: int | None = None, isbn: str | None = None, title: str 
         match = next((r for r in res.json().get("results", []) if same_book(r, title, author)), None)
         if match and match.get("artworkUrl100"):
             return _jpeg_or_none(_get(re.sub(r"100x100bb\.jpg$", "600x0w.jpg", match["artworkUrl100"])))
-    except (httpx.HTTPError, ValueError):
+    except (httpx2.HTTPError, ValueError):
         pass
     return None
 

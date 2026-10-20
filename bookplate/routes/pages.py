@@ -1,4 +1,4 @@
-"""Server-rendered pages (app/*/page.tsx). Forms post back here and redirect."""
+"""Server-rendered pages (``app/*/page.tsx``). Forms post back here and redirect."""
 
 import random
 import uuid
