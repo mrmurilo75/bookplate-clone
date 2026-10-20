@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
+from . import auth
 from .auth import LoginRequired
 from .db import migrate
 from .routes import api, pages
@@ -42,6 +43,10 @@ async def request_id(request: Request, call_next):
     start = time.perf_counter()
     response = await call_next(request)
     response.headers["X-Request-Id"] = rid
+    # A session slid forward gets a fresh cookie too, unless this response already sets or clears it.
+    token = getattr(request.state, "renew_session", None)
+    if token and not any(c.startswith(f"{auth.COOKIE}=") for c in response.headers.getlist("set-cookie")):
+        auth.set_cookie(response, token)
     if not request.url.path.startswith("/static"):
         log.info(
             json.dumps(
@@ -65,6 +70,15 @@ async def to_login(_: Request, __: LoginRequired):
 
 @app.exception_handler(HTTPException)
 async def http_error(request: Request, exc: HTTPException):
-    if request.url.path.startswith("/api/") or exc.status_code != 404:
-        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
-    return pages.render(request, "not_found.html", status_code=404)
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code, headers=exc.headers)
+    if exc.status_code == 404:
+        return pages.render(request, "not_found.html", status_code=404)
+    # Pages are read by people: a refused form (a limit, a too-large file) gets a page, not JSON.
+    return pages.render(
+        request,
+        "not_found.html",
+        status_code=exc.status_code,
+        heading="That didn't work",
+        message=exc.detail,
+    )

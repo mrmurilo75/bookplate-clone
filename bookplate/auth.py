@@ -113,6 +113,7 @@ def user_from_request(request: Request, db: Session) -> User | None:
         user.last_seen_at = now()
         db.add_all([session, user])
         db.commit()
+        request.state.renew_session = token  # the app's middleware re-sends the cookie with the new expiry
     return user
 
 

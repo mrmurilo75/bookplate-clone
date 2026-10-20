@@ -4,7 +4,7 @@ progress travel as camelCase dicts, the original's JSON/export format."""
 
 import re
 
-from sqlmodel import Session, col, delete, select
+from sqlmodel import Session, col, delete, func, select
 
 from . import storage
 from .models import Book, Note, ReadingProgress, VocabEntry, now
@@ -54,6 +54,12 @@ def book_json(b: Book) -> dict:
     return to_json(b, BOOK_FIELDS)
 
 
+def cover_file(cover_image: str | None) -> str | None:
+    """The stored file a book's cover URL points at, when it is one of ours."""
+    m = COVER_NAME.search(cover_image or "")
+    return m[1] if m and storage.is_safe_file(m[1]) else None
+
+
 def progress_json(p: ReadingProgress) -> dict:
     d = {"bookId": p.book_id, "date": p.date, "percent": p.percent}
     return d | ({"page": p.page} if p.page is not None else {})
@@ -64,6 +70,10 @@ def progress_json(p: ReadingProgress) -> dict:
 
 def list_books(db: Session, user_id: str) -> list[Book]:
     return list(db.exec(select(Book).where(Book.user_id == user_id)))
+
+
+def count_books(db: Session, user_id: str) -> int:
+    return db.exec(select(func.count()).select_from(Book).where(Book.user_id == user_id)).one()
 
 
 def get_book(db: Session, user_id: str, book_id: str) -> Book | None:
@@ -80,8 +90,8 @@ def save_book(db: Session, book: Book) -> Book:
 def delete_book(db: Session, user_id: str, book_id: str) -> None:
     """Removes the book together with its notes, pasted images, progress and cover."""
     book = get_book(db, user_id, book_id)
-    if book and book.cover_image and (m := COVER_NAME.search(book.cover_image)):
-        storage.delete(storage.cover_key(user_id, m[1]))
+    if book and (name := cover_file(book.cover_image)):
+        storage.delete(storage.cover_key(user_id, name))
     if book:
         db.delete(book)
     db.exec(delete(ReadingProgress).where(ReadingProgress.user_id == user_id, ReadingProgress.book_id == book_id))
@@ -145,6 +155,10 @@ def delete_progress(db: Session, user_id: str, book_id: str, day: str) -> None:
 
 def list_vocabulary(db: Session, user_id: str) -> list[VocabEntry]:
     return list(db.exec(select(VocabEntry).where(VocabEntry.user_id == user_id)))
+
+
+def count_words(db: Session, user_id: str) -> int:
+    return db.exec(select(func.count()).select_from(VocabEntry).where(VocabEntry.user_id == user_id)).one()
 
 
 def save_vocab(db: Session, entry: VocabEntry) -> None:

@@ -4,6 +4,7 @@ Wiktionary (word lookups), proxied so the browser stays same-origin
 
 import html
 import re
+import threading
 import time
 import unicodedata
 from urllib.parse import quote
@@ -15,6 +16,8 @@ from .storage import detect_image_type
 
 SEARCH_FIELDS = "key,title,author_name,number_of_pages_median,cover_i,first_publish_year"
 _cache: dict[str, tuple[float, object]] = {}
+_cache_lock = threading.Lock()
+CACHE_MAX = 2000  # keys are typed searches and words, so the cache must not grow without end
 DAY = 86400
 
 
@@ -27,7 +30,14 @@ def _cached(key: str, fetch):
     if hit and hit[0] > time.time():
         return hit[1]
     value = fetch()
-    _cache[key] = (time.time() + DAY, value)
+    with _cache_lock:
+        if len(_cache) >= CACHE_MAX:
+            now = time.time()
+            for k in [k for k, (expires, _) in _cache.items() if expires <= now]:
+                del _cache[k]
+            while len(_cache) >= CACHE_MAX:  # still full: drop the oldest entries
+                del _cache[next(iter(_cache))]
+        _cache[key] = (time.time() + DAY, value)
     return value
 
 

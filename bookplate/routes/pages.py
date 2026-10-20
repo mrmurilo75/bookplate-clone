@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from markdown_it import MarkdownIt
 from sqlmodel import Session
+from starlette.concurrency import run_in_threadpool
 
 from .. import archive, auth, csv_import, library, outbound, showcase, stats, storage
 from ..config import config
@@ -28,6 +29,7 @@ from ..domain import (
     today_iso,
 )
 from ..models import Book, User, VocabEntry, iso_now
+from ..validate import is_iso_date
 from .api import check_book_limit, check_word_limit, image_response, read_upload, store_cover
 
 router = APIRouter()
@@ -193,7 +195,7 @@ def library_page(
     )
 
 
-def book_form(request: Request, user: User, book: Book | None, error: str | None = None):
+def book_form(request: Request, user: User, book: Book | None, error: str | None = None, editing: bool = False):
     # A new book gets a random binding colour, as in the original.
     color = book.color_index if book else random.randrange(len(PALETTE))
     return render(
@@ -201,6 +203,7 @@ def book_form(request: Request, user: User, book: Book | None, error: str | None
         "book_form.html",
         user,
         book=book,
+        editing=editing,
         color=color,
         error=error,
         today=today_iso(),
@@ -217,7 +220,7 @@ def new_book_page(request: Request, user: User = Depends(auth.page_user)):
 def edit_book_page(
     request: Request, book_id: str, user: User = Depends(auth.page_user), db: Session = Depends(get_session)
 ):
-    return book_form(request, user, owned_book(db, user, book_id))
+    return book_form(request, user, owned_book(db, user, book_id), editing=True)
 
 
 @router.post("/books")
@@ -266,22 +269,31 @@ async def save_book(
     book.ol_work_id = ol_work_id.strip() or None
     if color_index is not None:
         book.color_index = color_index % len(PALETTE)
+    editing = existing is not None
     if not book.title or not book.author:
-        return book_form(request, user, book, "A book needs a title and an author.")
+        return book_form(request, user, book, "A book needs a title and an author.", editing)
+    if book.date_read and not is_iso_date(book.date_read):
+        return book_form(request, user, book, "Enter the date as a calendar day.", editing)
     if not existing:
         check_book_limit(db, user.id, book.id)
 
-    if remove_cover and book.cover_image:
-        storage.delete(storage.cover_key(user.id, f"{book.id}.jpg"))
+    # The old cover file goes only once the book is saved without it, so a failed upload keeps it.
+    removed = library.cover_file(book.cover_image) if remove_cover else None
+    if remove_cover:
         book.cover_image = None
     if cover and cover.filename:
         try:
-            book.cover_image = store_cover(user.id, book.id, await read_upload(cover, config.upload_bytes))
+            data = await read_upload(cover, config.upload_bytes)
+            book.cover_image = await run_in_threadpool(store_cover, user.id, book.id, data)
         except HTTPException as e:
-            return book_form(request, user, book, e.detail)
-    elif ol_cover_id.isdigit() and (data := outbound.find_cover(int(ol_cover_id), None, book.title, book.author)):
-        book.cover_image = store_cover(user.id, book.id, data)
+            return book_form(request, user, book, e.detail, editing)
+    elif ol_cover_id.isdigit() and (
+        data := await run_in_threadpool(outbound.find_cover, int(ol_cover_id), None, book.title, book.author)
+    ):
+        book.cover_image = await run_in_threadpool(store_cover, user.id, book.id, data)
     library.save_book(db, book)
+    if removed and not book.cover_image:
+        storage.delete(storage.cover_key(user.id, removed))
     return redirect(f"/books/{book.id}")
 
 
@@ -344,7 +356,8 @@ def log_progress(
     """Pages when the book has a page count, otherwise a percentage."""
     book = owned_book(db, user, book_id)
     day = day or today_iso()
-    date.fromisoformat(day)
+    if not is_iso_date(day):
+        raise HTTPException(400, "Enter the date as a calendar day.")
     if book.pages:
         page = max(0, min(int(value), book.pages))
         library.save_progress(db, user.id, book_id, day, page / book.pages * 100, page)
@@ -407,7 +420,7 @@ def save_word(
     part_of_speech: str = Form(""),
     example: str = Form(""),
     book_id: str = Form(""),
-    phonetic: str = Form(""),
+    phonetic: str | None = Form(None),
     back: str = Form("/vocabulary"),
     user: User = Depends(auth.page_user),
     db: Session = Depends(get_session),
@@ -419,7 +432,8 @@ def save_word(
     entry.word, entry.definition = word.strip(), definition.strip()
     entry.part_of_speech = part_of_speech.strip() or None
     entry.example = example.strip() or None
-    entry.phonetic = phonetic.strip() or None
+    if phonetic is not None:  # the forms don't carry it: keep what the dictionary or an import gave
+        entry.phonetic = phonetic.strip() or None
     entry.book_id = book_id if book_id and library.get_book(db, user.id, book_id) else None
     if entry.word and entry.definition:
         library.save_vocab(db, entry)
@@ -529,8 +543,9 @@ async def import_zip(
     user: User = Depends(auth.page_user),
     db: Session = Depends(get_session),
 ):
+    data = await read_upload(file, config.import_bytes)
     try:
-        s = archive.import_archive(db, user.id, await read_upload(file, config.import_bytes))
+        s = await run_in_threadpool(archive.import_archive, db, user.id, data)
     except archive.ImportError_ as e:
         return settings(request, user, db, error=str(e))
     return redirect(
@@ -548,7 +563,7 @@ async def import_csv(
 ):
     text = (await read_upload(file, config.import_bytes)).decode("utf-8", errors="replace")
     try:
-        s = csv_import.apply_csv_import(db, user.id, text)
+        s = await run_in_threadpool(csv_import.apply_csv_import, db, user.id, text)
     except csv_import.CsvImportError as e:
         return settings(request, user, db, error=str(e))
     return redirect(

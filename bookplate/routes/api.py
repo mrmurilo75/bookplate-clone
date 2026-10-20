@@ -6,6 +6,7 @@ import time
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 from sqlmodel import Session
+from starlette.concurrency import run_in_threadpool
 
 from .. import archive, csv_import, library, outbound, storage
 from ..auth import require_user
@@ -20,13 +21,13 @@ router = APIRouter(prefix="/api")
 def check_book_limit(db: Session, user_id: str, book_id: str) -> None:
     """Anything that adds books checks the per-account limit first (lib/limits.ts)."""
     if config.limit_books and not library.get_book(db, user_id, book_id):
-        if len(library.list_books(db, user_id)) >= config.limit_books:
+        if library.count_books(db, user_id) >= config.limit_books:
             raise HTTPException(403, f"You've reached the limit of {config.limit_books} books.")
 
 
 def check_word_limit(db: Session, user_id: str, word_id: str) -> None:
     if config.limit_words and not db.get(VocabEntry, (user_id, word_id)):
-        if len(library.list_vocabulary(db, user_id)) >= config.limit_words:
+        if library.count_words(db, user_id) >= config.limit_words:
             raise HTTPException(403, f"You've reached the limit of {config.limit_words} words.")
 
 
@@ -41,8 +42,12 @@ def store_cover(user_id: str, book_id: str, data: bytes) -> str:
     """Normalises any image to a 2:3 JPEG cover and returns its URL."""
     if not storage.detect_image_type(data):
         raise HTTPException(415, "Covers must be images.")
+    try:
+        cover = storage.make_cover(data)
+    except storage.BadImage as e:
+        raise HTTPException(415, "That image couldn't be read.") from e
     name = f"{book_id}.jpg"
-    storage.put(storage.cover_key(user_id, name), storage.make_cover(data))
+    storage.put(storage.cover_key(user_id, name), cover)
     return f"/api/covers/{name}?v={int(time.time() * 1000)}"
 
 
@@ -91,7 +96,8 @@ def delete_book(book_id: str, user: User = Depends(require_user), db: Session = 
 async def upload_cover(id: str = Form(...), file: UploadFile = File(...), user: User = Depends(require_user)):
     if not storage.is_safe_id(id):
         raise HTTPException(400, "Invalid upload")
-    return {"path": store_cover(user.id, id, await read_upload(file, config.upload_bytes))}
+    data = await read_upload(file, config.upload_bytes)
+    return {"path": await run_in_threadpool(store_cover, user.id, id, data)}
 
 
 @router.get("/covers/{name}")
@@ -149,8 +155,12 @@ async def upload_note_image(book: str = Form(...), file: UploadFile = File(...),
     data = await read_upload(file, config.upload_bytes)
     if not storage.is_safe_id(book) or not storage.detect_image_type(data):
         raise HTTPException(400, "Invalid image")
+    try:
+        image = await run_in_threadpool(storage.downscale, data)
+    except storage.BadImage as e:
+        raise HTTPException(400, "Invalid image") from e
     name = f"{int(time.time() * 1000)}.jpg"
-    storage.put(f"{storage.notes_dir(user.id, book)}/{name}", storage.downscale(data))
+    storage.put(f"{storage.notes_dir(user.id, book)}/{name}", image)
     return {"url": f"/api/notes/images/{book}/{name}"}
 
 
@@ -244,8 +254,9 @@ def export(user: User = Depends(require_user), db: Session = Depends(get_session
 async def import_zip(
     file: UploadFile = File(...), user: User = Depends(require_user), db: Session = Depends(get_session)
 ):
+    data = await read_upload(file, config.import_bytes)
     try:
-        return archive.summary_dict(archive.import_archive(db, user.id, await read_upload(file, config.import_bytes)))
+        return archive.summary_dict(await run_in_threadpool(archive.import_archive, db, user.id, data))
     except archive.ImportError_ as e:
         raise HTTPException(400, str(e)) from e
 
@@ -261,8 +272,9 @@ async def import_csv(
     text = (await read_upload(file, config.import_bytes)).decode("utf-8", errors="replace")
     try:
         if mode == "preview":
-            return {"summary": csv_import.summary_json(csv_import.plan(db, user.id, text)[0])}
-        summary = csv_import.apply_csv_import(db, user.id, text)
+            summary, _, _ = await run_in_threadpool(csv_import.plan, db, user.id, text)
+            return {"summary": csv_import.summary_json(summary)}
+        summary = await run_in_threadpool(csv_import.apply_csv_import, db, user.id, text)
         return {"summary": csv_import.summary_json(summary), "coverIds": summary.cover_ids}
     except csv_import.CsvImportError as e:
         raise HTTPException(400, str(e)) from e

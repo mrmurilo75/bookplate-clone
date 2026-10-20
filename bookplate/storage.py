@@ -82,6 +82,19 @@ def list_dir(prefix: str) -> list[str]:
     return sorted(f"{prefix}/{p.name}" for p in path.iterdir() if p.is_file()) if path.is_dir() else []
 
 
+class BadImage(Exception):
+    """The bytes start like an image but can't be decoded (truncated, corrupt, or far too large)."""
+
+
+def _open(data: bytes) -> Image.Image:
+    try:
+        img = Image.open(io.BytesIO(data))
+        img.load()
+        return ImageOps.exif_transpose(img)
+    except (OSError, ValueError, Image.DecompressionBombError) as e:
+        raise BadImage(str(e)) from e
+
+
 def _jpeg(img: Image.Image) -> bytes:
     out = io.BytesIO()
     img.convert("RGB").save(out, "JPEG", quality=82, optimize=True)
@@ -90,7 +103,7 @@ def _jpeg(img: Image.Image) -> bytes:
 
 def make_cover(data: bytes) -> bytes:
     """Centre-crops to book proportions (2:3) and caps at 600×900."""
-    img = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+    img = _open(data)
     w, h = img.size
     tw, th = (w, round(w * 1.5)) if h >= w * 1.5 else (round(h / 1.5), h)
     img = ImageOps.fit(img, (tw, th))
@@ -100,6 +113,6 @@ def make_cover(data: bytes) -> bytes:
 
 
 def downscale(data: bytes, long_edge: int = 1600) -> bytes:
-    img = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+    img = _open(data)
     img.thumbnail((long_edge, long_edge))
     return _jpeg(img)

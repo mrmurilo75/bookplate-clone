@@ -28,7 +28,7 @@ def migrate(url: str = config.database_url) -> None:
     """Applies every pending migration, like the original does on start."""
     cfg = AlembicConfig(str(ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(ROOT / "migrations"))
-    cfg.set_main_option("sqlalchemy.url", url)
+    cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))  # ConfigParser interpolates "%"
     command.upgrade(cfg, "head")
 
 

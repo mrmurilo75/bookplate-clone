@@ -56,9 +56,8 @@ def build_export(db: Session, user_id: str) -> bytes:
                 if data := storage.get(key):
                     z.writestr(f"notes/images/{n.book_id}/{key.rsplit('/', 1)[1]}", data, zipfile.ZIP_STORED)
         for b in books:
-            m = library.COVER_NAME.search(b.cover_image or "")
-            if m and storage.is_safe_file(m[1]) and (data := storage.get(storage.cover_key(user_id, m[1]))):
-                z.writestr(f"covers/{m[1]}", data, zipfile.ZIP_STORED)  # JPEGs don't compress further
+            if (name := library.cover_file(b.cover_image)) and (data := storage.get(storage.cover_key(user_id, name))):
+                z.writestr(f"covers/{name}", data, zipfile.ZIP_STORED)  # JPEGs don't compress further
     return buf.getvalue()
 
 
@@ -131,8 +130,15 @@ def import_archive(db: Session, user_id: str, data: bytes) -> ImportSummary:
             else:
                 skipped += 1
 
-    if config.limit_books and len(library.list_books(db, user_id)) + len(books) > config.limit_books:
-        raise ImportError_(f"This import would go over the limit of {config.limit_books} books.")
+    # Records with ids already in the library are overwritten, so only new ids count towards the limits.
+    if config.limit_books:
+        have = {b.id for b in library.list_books(db, user_id)}
+        if len(have | {b["id"] for b in books}) > config.limit_books:
+            raise ImportError_(f"This import would go over the limit of {config.limit_books} books.")
+    if config.limit_words:
+        have = {w.id for w in library.list_vocabulary(db, user_id)}
+        if len(have | {w["id"] for w in words}) > config.limit_words:
+            raise ImportError_(f"This import would go over the limit of {config.limit_words} words.")
     for key, content in images:  # images first: if the database write fails, a retry overwrites them
         storage.put(key, content)
     library.import_records(db, user_id, books, words, notes, progress)

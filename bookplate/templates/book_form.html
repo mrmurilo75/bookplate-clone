@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% from "_macros.html" import cover %}
-{% block title %}{{ 'Edit' if book and book.title else 'Add' }} book · Bookplate{% endblock %}
+{% block title %}{{ 'Edit' if editing else 'Add' }} book · Bookplate{% endblock %}
 {% block content %}
-{% set editing = book and book.title and request.url.path.endswith('/edit') %}
-<div class="page-head"><div><p class="eyebrow">{{ 'Edit' if editing else 'New volume' }}</p><h1>{{ book.title if editing else 'Add a book' }}</h1></div>
+<div class="page-head"><div><p class="eyebrow">{{ 'Edit' if editing else 'New volume' }}</p><h1>{{ (book.title or 'Untitled') if editing else 'Add a book' }}</h1></div>
   <a href="{{ '/books/' ~ book.id if editing else '/' }}" class="btn">Cancel</a></div>
 {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 

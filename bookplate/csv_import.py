@@ -13,8 +13,10 @@ from dataclasses import dataclass, field
 from sqlmodel import Session
 
 from . import library
+from .config import config
 from .domain import PALETTE
 from .models import iso_now
+from .validate import is_iso_date
 
 
 class CsvImportError(Exception):
@@ -55,7 +57,8 @@ def clean_isbn(value: str) -> str | None:
 
 def clean_date(value: str) -> str | None:
     m = re.match(r"^(\d{4})[/-](\d{1,2})[/-](\d{1,2})", value)
-    return f"{m[1]}-{int(m[2]):02d}-{int(m[3]):02d}" if m else None
+    day = f"{m[1]}-{int(m[2]):02d}-{int(m[3]):02d}" if m else None
+    return day if is_iso_date(day) else None
 
 
 def clean_rating(value: str) -> float:
@@ -188,7 +191,8 @@ def plan(db: Session, user_id: str, text: str) -> tuple[CsvImportSummary, list[d
 
     summary, books, notes, seen = CsvImportSummary(source), [], {}, set()
     for record in reader:
-        row = to_row({(k or "").strip(): (v or "").strip() for k, v in record.items()})
+        # A row with more fields than the header puts the extras under the key None, as a list.
+        row = to_row({k.strip(): (v or "").strip() for k, v in record.items() if k is not None})
         if not row:
             summary.skipped += 1
             continue
@@ -230,6 +234,8 @@ def plan(db: Session, user_id: str, text: str) -> tuple[CsvImportSummary, list[d
 
 def apply_csv_import(db: Session, user_id: str, text: str) -> CsvImportSummary:
     summary, books, notes = plan(db, user_id, text)
+    if config.limit_books and library.count_books(db, user_id) + summary.added > config.limit_books:
+        raise CsvImportError(f"This import would go over the limit of {config.limit_books} books.")
     library.import_records(db, user_id, books, [], notes)
     summary.cover_ids = [b["id"] for b in books if not b.get("coverImage")]
     return summary
