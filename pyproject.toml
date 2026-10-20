@@ -34,6 +34,11 @@ ignore = ["B008"]
 testpaths = ["tests"]
 bdd_features_base_dir = "tests/features"
 
+[project.urls]
+Documentation = "https://mrmurilo75.github.io/bookplate-clone/"
+Source = "https://github.com/mrmurilo75/bookplate-clone"
+Original = "https://github.com/LeoPhh/bookplate"
+
 [project.scripts]
 bookplate-reset-password = "bookplate.cli:reset_password"
 

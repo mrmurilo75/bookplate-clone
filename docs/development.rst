@@ -51,6 +51,10 @@ follow the code:
 
    uv run --group docs sphinx-build -W docs docs/_build/html
 
+CI builds them on every push and pull request, and on the default branch,
+once the tests and the docs build pass, publishes them to GitHub Pages at
+https://mrmurilo75.github.io/bookplate-clone/.
+
 Where things are
 ----------------
 

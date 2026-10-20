@@ -73,7 +73,8 @@ is set with environment variables; see
 
 Full documentation (installation and configuration, a user guide, the HTTP
 API, development notes, a map from each module to the part of the original it
-ports, and a code reference) is built with Sphinx:
+ports, and a code reference) is published at **https://mrmurilo75.github.io/bookplate-clone/**, rebuilt by CI
+on every push to the default branch once the tests pass. To build it locally:
 
 ```bash
 uv run --group docs sphinx-build docs docs/_build/html   # then open docs/_build/html/index.html

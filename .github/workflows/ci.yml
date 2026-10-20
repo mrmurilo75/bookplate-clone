@@ -1,5 +1,8 @@
 name: CI
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -17,7 +20,29 @@ jobs:
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run alembic upgrade head && uv run alembic check
         env: { DATABASE_URL: "sqlite:///./ci.db" }
-      - run: uv run --group docs sphinx-build -W --keep-going docs docs/_build/html
       - run: uv run pytest
       - run: uv run pytest
         env: { TEST_DATABASE_URL: "postgresql+psycopg://bookplate:bookplate@localhost:5432/bookplate" }
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --frozen --group docs sphinx-build -W --keep-going docs docs/_build/html
+      - uses: actions/upload-pages-artifact@v4
+        with: { path: docs/_build/html }
+
+  # Publishes the docs to GitHub Pages once tests and docs pass on the default branch.
+  deploy-docs:
+    needs: [test, docs]
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency: { group: pages, cancel-in-progress: false }
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
