@@ -59,3 +59,25 @@ Feature: The library
     Then the page does not show "Dune"
     When they open "/books/<Dune>"
     Then the response status is 404
+
+  Scenario Outline: Search forgives typos, accents and word order
+    Given the library has "Dune" by "Frank Herbert" with status "read"
+    And the library has "The Hobbit" by "J. R. R. Tolkien" with status "read"
+    And the library has "Émile" by "Jean-Jacques Rousseau" with status "to-read"
+    And the library has "Brave New World" by "Aldous Huxley" with status "read"
+    And the library has "Grave Peril" by "Jim Butcher" with status "reading"
+    When they search the library for "<query>"
+    Then the library shows <shown>
+
+    Examples:
+      | query        | shown             |
+      | Herbert      | "Dune"            |
+      | herb         | "Dune"            |
+      | Herbrt       | "Dune"            |
+      | tolkein      | "The Hobbit"      |
+      | emile        | "Émile"           |
+      | herbert dune | "Dune"            |
+      | dune tolkien | nothing           |
+      | brave        | "Brave New World" |
+      | dnue         | nothing           |
+      | zebra        | nothing           |

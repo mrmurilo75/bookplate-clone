@@ -37,3 +37,10 @@ Feature: Vocabulary
   Scenario: Saving a word never redirects off the site
     When they save a word with the return address "//evil.example/"
     Then they end up on "/vocabulary"
+
+  Scenario: Searching the registry forgives a typo
+    Given they saved the word "petrichor" meaning "the smell of rain" from no book
+    And they saved the word "kanly" meaning "a formal feud" from "Dune"
+    When they open "/vocabulary?q=petrichr"
+    Then the page shows "the smell of rain"
+    And the page does not show "a formal feud"

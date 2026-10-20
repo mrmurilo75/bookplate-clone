@@ -16,7 +16,8 @@ and **pytest-bdd**.
 
 - **Library**: a covers grid (real photos, or generated cloth covers in one of
   twelve binding colours) and a sortable ledger with a count row; free-text
-  search across titles, authors, genres and notes; status filter chips; a
+  search across titles, authors, genres and notes that forgives typos, accents
+  and word order; status filter chips; a
   *Show notes* toggle that drapes a ribbon over books with notes.
 - **Books**: title, author, genre, pages, status (read / reading / to read /
   didn't finish), half-star rating, date finished or stopped, ISBN; optional

@@ -119,6 +119,11 @@ def write_notes(db: Session, user_id: str, book_id: str, markdown: str) -> None:
             storage.delete(key)
 
 
+def all_notes(db: Session, user_id: str) -> dict[str, str]:
+    """Every book's notes, by book id, in one query."""
+    return {n.book_id: n.markdown for n in db.exec(select(Note).where(Note.user_id == user_id))}
+
+
 def noted_book_ids(db: Session, user_id: str) -> set[str]:
     return set(db.exec(select(Note.book_id).where(Note.user_id == user_id)))
 

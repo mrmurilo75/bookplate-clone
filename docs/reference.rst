@@ -10,6 +10,7 @@ Domain
 .. automodule:: bookplate.domain
 .. automodule:: bookplate.stats
 .. automodule:: bookplate.showcase
+.. automodule:: bookplate.search
 
 Data
 ----

@@ -1,4 +1,5 @@
 import io
+import re
 
 from conftest import jpeg, reader
 from PIL import Image
@@ -91,3 +92,14 @@ def nothing_left(ctx, title):
             id_col = model.id if model is Book else model.book_id
             assert not db.exec(select(model).where(id_col == book_id)).all()
     assert not any(p for p in storage.config.uploads_dir.rglob("*") if p.is_file())
+
+
+@when(parsers.parse('they search the library for "{query}"'))
+def search_library(ctx, query):
+    ctx["response"] = reader(ctx).get("/", params={"q": query})
+
+
+@then(parsers.parse("the library shows {shown}"))
+def library_shows(ctx, shown):
+    titles = re.findall(r'<p class="grid-title">([^<]*)</p>', ctx["response"].text)
+    assert titles == ([] if shown == "nothing" else [shown.strip('"')])

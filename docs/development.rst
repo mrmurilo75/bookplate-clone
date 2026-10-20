@@ -94,6 +94,9 @@ be traced back to its source.
    * - :mod:`bookplate.showcase`
      - ``lib/showcase.ts``, ``lib/showcaseYear.ts``
      - public year pages
+   * - :mod:`bookplate.search`
+     - the search filter in ``app/page.tsx``
+     - forgiving free-text search (difflib)
    * - :mod:`bookplate.routes.api`
      - ``app/api/*``
      - JSON API

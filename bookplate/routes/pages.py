@@ -13,7 +13,7 @@ from markdown_it import MarkdownIt
 from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
 
-from .. import archive, auth, csv_import, library, outbound, showcase, stats, storage
+from .. import archive, auth, csv_import, library, outbound, search, showcase, stats, storage
 from ..config import config
 from ..db import get_session
 from ..domain import (
@@ -155,23 +155,13 @@ def library_page(
     noted = library.noted_book_ids(db, user.id)
     counts = {s: sum(1 for b in books if b.status == s) for s in STATUS_LABELS}
     if q.strip():
-        needle = q.strip().lower()
+        notes_text = library.all_notes(db, user.id)
         hay = {
-            b.id: " ".join(
-                filter(
-                    None,
-                    [
-                        b.title,
-                        b.author,
-                        b.genre,
-                        b.short_notes,
-                        library.read_notes(db, user.id, b.id) if b.id in noted else None,
-                    ],
-                )
-            )
+            b.id: " ".join(filter(None, [b.title, b.author, b.genre, b.short_notes, notes_text.get(b.id)]))
             for b in books
         }
-        books = [b for b in books if needle in hay[b.id].lower()]
+        found = search.search(q, hay)
+        books = [b for b in books if b.id in found]
     if status in STATUS_LABELS:
         books = [b for b in books if b.status == status]
     sort = sort if sort in SORTS else "added"
@@ -390,8 +380,8 @@ def vocabulary_page(
     words = library.list_vocabulary(db, user.id)
     books = {b.id: b for b in library.list_books(db, user.id)}
     if q.strip():
-        needle = q.strip().lower()
-        words = [w for w in words if needle in f"{w.word} {w.definition} {w.example or ''}".lower()]
+        found = search.search(q, {w.id: f"{w.word} {w.definition} {w.example or ''}" for w in words})
+        words = [w for w in words if w.id in found]
     if book:
         words = [w for w in words if w.book_id == book]
     if sort == "word":

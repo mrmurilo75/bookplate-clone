@@ -20,6 +20,14 @@ the chips filter by status (Read, Reading, TBR, Didn't finish); and the sort
 menu orders by recently added, title, author, rating or date finished.
 **Show notes** drapes a bookmark ribbon over every book that has notes.
 
+Search is forgiving. Every word you type must appear in the book, in any
+order, ignoring case and accents (``herbert dune`` and ``emile`` both work),
+and part of a word is enough (``herb`` finds *Herbert*). A word that appears
+nowhere in the library is matched to words within a small typo of it, so
+``Herbrt`` and ``tolkein`` still find their books; a correctly spelled word
+never brings in look-alikes. Words of four letters or fewer must be spelled
+right (see :mod:`bookplate.search`).
+
 Adding and editing books
 ------------------------
 
@@ -69,8 +77,8 @@ The vocabulary page (``/vocabulary``) is a registry of words learned while
 reading. Type a word and press **Look up** to search Wiktionary, then pick the
 sense to keep, with its part of speech and an example; or write your own
 definition. Words can be tagged with the book they came from, and each book's
-page lists its own words. The registry can be searched, sorted (newest first
-or A–Z) and filtered by book.
+page lists its own words. The registry can be searched (as forgivingly as the
+library), sorted (newest first or A–Z) and filtered by book.
 
 Statistics
 ----------
